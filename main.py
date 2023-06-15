@@ -66,7 +66,7 @@ def get_parser():
     parser.add_argument('-model_saved_name', default='')
     parser.add_argument(
         '--config',
-        default='./config/nturgbd-cross-subject/train_joint.yaml',
+        default='./config/ntu_less_cs/train_joint_aagcn.yaml',
         help='path to the configuration file')
 
     # processor

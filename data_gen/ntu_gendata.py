@@ -189,6 +189,7 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
     for i, s in enumerate(tqdm(sample_name)):
         data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, num_joint)
         data = resize(data, size=(32, num_joint), mode='bilinear', align_corners=False).view(3, 32, num_joint, 1)
+
         fp[i, :, 0:data.shape[1], :, :] = data
 
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)

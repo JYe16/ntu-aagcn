@@ -21,7 +21,7 @@ model: model.aagcn.Model
 model_args:
   num_class: 49
   num_point: 25
-  num_person: 2
+  num_person: 1
   graph: graph.ntu_rgb_d.Graph
   graph_args:
     labeling_mode: 'spatial'
