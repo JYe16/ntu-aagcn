@@ -3,6 +3,7 @@
 .idea/
 runs/
 work_dir/
+data/
 
 ### Python template
 # Byte-compiled / optimized / DLL files
