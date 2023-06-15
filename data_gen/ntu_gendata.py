@@ -2,6 +2,8 @@ import argparse
 import pickle
 from tqdm import tqdm
 import sys
+import torch
+from torch.nn.functional import interpolate as resize
 
 sys.path.extend(['../'])
 from data_gen.preprocess import pre_normalization
@@ -137,16 +139,67 @@ def gendata(data_path, out_path, ignored_sample_path=None, benchmark='xview', pa
         data = read_xyz(os.path.join(data_path, s), max_body=max_body_kinect, num_joint=num_joint)
         fp[i, :, 0:data.shape[1], :, :] = data
 
-    fp = pre_normalization(fp)
+    # fp = pre_normalization(fp)
+    np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
+
+
+def read_pt(file, num_joint=num_joint):
+    data = np.zeros((1, 300, num_joint, 3))
+    data = torch.load(file)
+
+
+def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint=25):
+    ignored_samples = []
+    sample_name = []
+    sample_label = []
+
+    for filename in os.listdir(pt_path):
+        if filename in ignored_samples:
+            continue
+        action_class = int(
+            filename[filename.find('A') + 1:filename.find('A') + 4])
+        subject_id = int(
+            filename[filename.find('P') + 1:filename.find('P') + 4])
+        camera_id = int(
+            filename[filename.find('C') + 1:filename.find('C') + 4])
+
+        if benchmark == 'xview':
+            istraining = (camera_id in training_cameras)
+        elif benchmark == 'xsub':
+            istraining = (subject_id in training_subjects)
+        else:
+            raise ValueError()
+
+        if part == 'train':
+            issample = istraining
+        elif part == 'val':
+            issample = not (istraining)
+        else:
+            raise ValueError()
+
+        if issample:
+            sample_name.append(filename)
+            sample_label.append(action_class - 1)
+
+    with open('{}/{}_label.pkl'.format(out_path, part), 'wb') as f:
+        pickle.dump((sample_name, list(sample_label)), f)
+
+    fp = np.zeros((len(sample_label), 3, 32, num_joint, 1), dtype=np.float32)
+
+    for i, s in enumerate(tqdm(sample_name)):
+        data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, num_joint)
+        data = resize(data, size=(32, num_joint), mode='bilinear', align_corners=False).view(3, 32, num_joint, 1)
+        fp[i, :, 0:data.shape[1], :, :] = data
+
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='NTU-RGB-D Data Converter.')
-    parser.add_argument('--data_path', default='../data/nturgbd_raw/nturgb+d_skeletons/')
+    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/mesh_pt_small/all/')
     parser.add_argument('--ignored_sample_path',
-                        default='../data/nturgbd_raw/samples_with_missing_skeletons.txt')
-    parser.add_argument('--out_folder', default='../data/ntu/')
+                        default='../data/ntu_less_raw/samples_with_missing_skeletons.txt')
+    parser.add_argument('--out_folder', default='../data/ntu_test/')
 
     benchmark = ['xsub', 'xview']
     part = ['train', 'val']
@@ -158,9 +211,14 @@ if __name__ == '__main__':
             if not os.path.exists(out_path):
                 os.makedirs(out_path)
             print(b, p)
-            gendata(
-                arg.data_path,
-                out_path,
-                arg.ignored_sample_path,
+            # gendata(
+            #     data_path=arg.data_path,
+            #     out_path=out_path,
+            #     benchmark=b,
+            #     ignored_sample_path=arg.ignored_sample_path,
+            #     part=p)
+            gendata_from_pt(
+                pt_path=arg.data_path,
+                out_path=out_path,
                 benchmark=b,
                 part=p)
