@@ -155,7 +155,7 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
     ignored_samples = []
     sample_name = []
     sample_label = []
-    adj_list = []
+    adj_list_generated = False
 
     for filename in os.listdir(pt_path):
         if filename in ignored_samples:
@@ -194,8 +194,9 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
         data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, 10475)
         data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
         data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
-        if not adj_list:
-            adj_list = generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0])
+        if adj_list_generated is False:
+            generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0])
+            adj_list_generated = True
         fp[i, :, 0:data.shape[1], :, :] = data
 
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
