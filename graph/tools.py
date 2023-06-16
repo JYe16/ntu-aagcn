@@ -25,3 +25,5 @@ def get_spatial_graph(num_node, self_link, inward, outward):
     Out = normalize_digraph(edge2mat(outward, num_node))
     A = np.stack((I, In, Out))
     return A
+
+

@@ -1,9 +1,12 @@
 import argparse
 import pickle
+
+import math
 from tqdm import tqdm
 import sys
 import torch
 from torch.nn.functional import interpolate as resize
+import open3d as o3d
 
 sys.path.extend(['../'])
 from data_gen.preprocess import pre_normalization
@@ -148,10 +151,11 @@ def read_pt(file, num_joint=num_joint):
     data = torch.load(file)
 
 
-def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint=25):
+def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint=524):
     ignored_samples = []
     sample_name = []
     sample_label = []
+    adj_list = []
 
     for filename in os.listdir(pt_path):
         if filename in ignored_samples:
@@ -187,12 +191,62 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
     fp = np.zeros((len(sample_label), 3, 32, num_joint, 1), dtype=np.float32)
 
     for i, s in enumerate(tqdm(sample_name)):
-        data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, num_joint)
-        data = resize(data, size=(32, num_joint), mode='bilinear', align_corners=False).view(3, 32, num_joint, 1)
-
+        data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, 10475)
+        data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
+        data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
+        if not adj_list:
+            adj_list = generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0])
         fp[i, :, 0:data.shape[1], :, :] = data
 
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
+
+
+def shrink_points_o3d(original_sequence, target_num):
+    shrank_points = []
+    ratio = int(10475 / target_num)
+    for i in range(0, len(original_sequence), 1):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(original_sequence[i])
+        pcd = pcd.uniform_down_sample(ratio)
+        shape = len(pcd.points)
+
+        if i == 0:
+            shrank_points = np.asarray(pcd.points).reshape(1, shape, 3)
+            # o3d.visualization.draw_geometries([pcd])
+        else:
+            shrank_points = np.append(shrank_points, np.asarray(pcd.points).reshape(1, -1, 3)).reshape(-1, shape, 3)
+    return shrank_points.reshape(3, -1, shape, 1)
+
+
+def generate_adjacency_pair_inward(frame):
+    adj_list = []
+
+    for i in range(0, len(frame), 1):
+        dis_dict = {}
+        for j in range(0, len(frame), 1):
+            if i != j:
+                dis_dict[j] = math.sqrt(
+                    math.pow((frame[i][0] - frame[j][0]), 2) + math.pow((frame[i][1] - frame[j][1]), 2) + math.pow(
+                        (frame[i][2] - frame[j][2]), 2))
+        sorted_dis_dict = list(dict(sorted(dis_dict.items(), key=lambda item: item[1])).keys())
+
+        if check_inward_adj_list(adj_list, i) is True:
+            adj_list.append([i, sorted_dis_dict[0]])
+            adj_list.append([i, sorted_dis_dict[1]])
+        # If there is more, keep adding, else stop
+        k = 2
+        while dis_dict[sorted_dis_dict[k]] < 1.5 * dis_dict[sorted_dis_dict[0]]:
+            if check_inward_adj_list(adj_list, i) is True:
+                adj_list.append([i, sorted_dis_dict[k]])
+            k += 1
+    torch.save(adj_list, '../data/ntu_test/inward.pt')
+
+
+def check_inward_adj_list(l, node):
+    for pair in l:
+        if pair[1] == node:
+            return False
+    return True
 
 
 if __name__ == '__main__':
