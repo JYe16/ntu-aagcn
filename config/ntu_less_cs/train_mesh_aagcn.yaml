@@ -17,15 +17,15 @@ test_feeder_args:
   label_path: ./data/ntu_test/xsub/val_label.pkl
 
 # model
-model: model.aagcn.Model
+model: model.aagcn_mesh.Model
 model_args:
   num_class: 49
-  num_point: 25
-  num_person: 2
-  graph: graph.ntu_rgb_d.Graph
+  num_point: 524
+  num_person: 1
+  graph: graph.ntu_mesh.MeshGraph
   graph_args:
     labeling_mode: 'spatial'
-
+    inward: 'data/ntu_test/inward.pt'
 #optim
 weight_decay: 0.0001
 base_lr: 0.1

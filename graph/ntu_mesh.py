@@ -1,19 +1,22 @@
 import sys
+import numpy as np
+import torch
 
 sys.path.extend(['../'])
 from graph import tools
 
-num_node = 504
+num_node = 524
 self_link = [(i, i) for i in range(num_node)]
 
 
 class MeshGraph:
-    def __init__(self, labeling_mode='spatial', inward_ori_index=None):
-        if inward_ori_index is None:
-            inward_ori_index = []
+    def __init__(self, labeling_mode='spatial', inward=None):
+        if inward is None:
+            self.inward = []
+        else:
+            self.inward = list(np.asarray(torch.load(inward)))
         self.num_node = num_node
         self.self_link = self_link
-        self.inward = [(i - 1, j - 1) for (i, j) in inward_ori_index]
         self.outward = [(j, i) for (i, j) in self.inward]
         self.neighbor = self.inward + self.outward
         self.A = self.get_adjacency_matrix(labeling_mode)

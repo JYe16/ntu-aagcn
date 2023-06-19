@@ -203,7 +203,7 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
 
 
 def shrink_points_o3d(original_sequence, target_num):
-    shrank_points = []
+    result = []
     ratio = int(10475 / target_num)
     for i in range(0, len(original_sequence), 1):
         pcd = o3d.geometry.PointCloud()
@@ -212,11 +212,11 @@ def shrink_points_o3d(original_sequence, target_num):
         shape = len(pcd.points)
 
         if i == 0:
-            shrank_points = np.asarray(pcd.points).reshape(1, shape, 3)
+            result = np.asarray(pcd.points).reshape(1, shape, 3)
             # o3d.visualization.draw_geometries([pcd])
         else:
-            shrank_points = np.append(shrank_points, np.asarray(pcd.points).reshape(1, -1, 3)).reshape(-1, shape, 3)
-    return shrank_points.reshape(3, -1, shape, 1)
+            result = np.append(result, np.asarray(pcd.points).reshape(1, -1, 3)).reshape(-1, shape, 3)
+    return result.reshape(3, -1, shape, 1)
 
 
 def generate_adjacency_pair_inward(frame):
@@ -260,6 +260,8 @@ if __name__ == '__main__':
     benchmark = ['xsub', 'xview']
     part = ['train', 'val']
     arg = parser.parse_args()
+
+    # d = np.load('../data/ntu_test/xsub/train_data_joint.npy')
 
     for b in benchmark:
         for p in part:
