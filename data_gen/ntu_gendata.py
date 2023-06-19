@@ -195,7 +195,7 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
         data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
         data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
         if adj_list_generated is False:
-            generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0])
+            generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0], path=out_path)
             adj_list_generated = True
         fp[i, :, 0:data.shape[1], :, :] = data
 
@@ -219,7 +219,7 @@ def shrink_points_o3d(original_sequence, target_num):
     return result.reshape(3, -1, shape, 1)
 
 
-def generate_adjacency_pair_inward(frame):
+def generate_adjacency_pair_inward(frame, path):
     adj_list = []
 
     for i in range(0, len(frame), 1):
@@ -240,7 +240,8 @@ def generate_adjacency_pair_inward(frame):
             if check_inward_adj_list(adj_list, i) is True:
                 adj_list.append([i, sorted_dis_dict[k]])
             k += 1
-    torch.save(adj_list, '../data/ntu_test/inward.pt')
+    torch.save(adj_list, f'{path}inward.pt')
+
 
 
 def check_inward_adj_list(l, node):
