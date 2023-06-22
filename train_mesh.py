@@ -66,7 +66,7 @@ def get_parser():
     parser.add_argument('-model_saved_name', default='')
     parser.add_argument(
         '--config',
-        default='./config/ntu_less_cs/train_mesh_aagcn.yaml',
+        default='./config/ntu_less_cs/train_mesh_aagcn_524.yaml',
         help='path to the configuration file')
 
     # processor
