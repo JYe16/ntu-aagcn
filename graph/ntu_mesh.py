@@ -5,7 +5,7 @@ import torch
 sys.path.extend(['../'])
 from graph import tools
 
-num_node = 2095
+num_node = 25
 self_link = [(i, i) for i in range(num_node)]
 
 
