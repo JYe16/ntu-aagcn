@@ -21,7 +21,10 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import _LRScheduler
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
+train_losses = []
+eval_losses = []
 
 class GradualWarmupScheduler(_LRScheduler):
     def __init__(self, optimizer, total_epoch, after_scheduler=None):
@@ -427,7 +430,7 @@ class Processor():
         self.print_log(
             '\tTime consumption: [Data]{dataloader}, [Network]{model}'.format(
                 **proportion))
-
+        train_losses.append(np.mean(loss_value))
         if save_model:
             state_dict = self.model.state_dict()
             weights = OrderedDict([[k.split('module.')[-1],
@@ -483,6 +486,7 @@ class Processor():
                             f_w.write(str(index[i]) + ',' + str(x) + ',' + str(true[i]) + '\n')
             score = np.concatenate(score_frag)
             loss = np.mean(loss_value)
+            eval_losses.append(loss)
             accuracy = self.data_loader[ln].dataset.top_k(score, 1)
             if accuracy > self.best_acc:
                 self.best_acc = accuracy
@@ -523,7 +527,17 @@ class Processor():
                     save_score=self.arg.save_score,
                     loader_name=['test'])
 
+            X_axis = range(1, self.arg.num_epoch + 1)
+            plt.plot(X_axis, train_losses, color='r', label='training loss')
+            plt.plot(X_axis, eval_losses, color='b', label='evaluation loss')
+            plt.xlabel('# Epoch')
+            plt.ylabel('Average Loss')
+            plt.title("Loss Trend")
+            plt.legend()
+            plt.savefig(self.arg.work_dir + "/loss_trend")
+            print("Loss trend saved to " + self.arg.work_dir)
             print('best accuracy: ', self.best_acc, ' model_name: ', self.arg.model_saved_name)
+
 
         elif self.arg.phase == 'test':
             if not self.arg.test_feeder_args['debug']:
