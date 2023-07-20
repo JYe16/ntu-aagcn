@@ -21,6 +21,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import _LRScheduler
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 train_losses = []
 eval_losses = []
 

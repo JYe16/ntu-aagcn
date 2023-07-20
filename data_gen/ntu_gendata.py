@@ -146,22 +146,20 @@ def gendata(data_path, out_path, ignored_sample_path=None, benchmark='xview', pa
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
 
 
-def read_pt(file, num_joint=num_joint):
-    data = np.zeros((1, 300, num_joint, 3))
-    data = torch.load(file)
-
-
 def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint=524):
     ignored_samples = []
     sample_name = []
     sample_label = []
     adj_list_generated = False
+    classes_file = open(pt_path + "../classes.txt")
+    classes = classes_file.readlines()
+    for i in range(0, len(classes), 1):
+        classes[i] = classes[i].split('-')[0]
 
     for filename in os.listdir(pt_path):
         if filename in ignored_samples:
             continue
-        action_class = int(
-            filename[filename.find('A') + 1:filename.find('A') + 4])
+        action_class = generate_y(filename, classes)
         subject_id = int(
             filename[filename.find('P') + 1:filename.find('P') + 4])
         camera_id = int(
@@ -183,7 +181,7 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
 
         if issample:
             sample_name.append(filename)
-            sample_label.append(action_class - 1)
+            sample_label.append(action_class)
 
     with open('{}/{}_label.pkl'.format(out_path, part), 'wb') as f:
         pickle.dump((sample_name, list(sample_label)), f)
@@ -191,16 +189,24 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
     fp = np.zeros((len(sample_label), 3, 32, num_joint, 1), dtype=np.float32)
 
     for i, s in enumerate(tqdm(sample_name)):
-        data = torch.load(os.path.join(pt_path, s)).view(1, 3, -1, 10475)
-        data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
-        data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
+        data = torch.permute(torch.load(os.path.join(pt_path, s)), (2, 0, 1)).view(3, 32, 524, 1)
+        # data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
+        # data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
         if adj_list_generated is False:
-            generate_adjacency_pair_inward(np.asarray(data.view(32, num_joint, 3))[0], path=out_path)
+            data_t = torch.permute(data, (3, 1, 2, 0)).squeeze()
+            generate_adjacency_pair_inward(np.asarray(data_t)[0], path=out_path)
             adj_list_generated = True
         fp[i, :, 0:data.shape[1], :, :] = data
 
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
 
+
+def generate_y(filename, classes):
+
+    for i in range(0, len(classes), 1):
+        if classes[i] in filename:
+            return int(i)
+    return int(-1)
 
 def shrink_points_o3d(original_sequence, target_num):
     result = []
@@ -240,8 +246,7 @@ def generate_adjacency_pair_inward(frame, path):
             if check_inward_adj_list(adj_list, i) is True:
                 adj_list.append([i, sorted_dis_dict[k]])
             k += 1
-    torch.save(adj_list, f'{path}inward.pt')
-
+    torch.save(adj_list, f'{path}/inward.pt')
 
 
 def check_inward_adj_list(l, node):
@@ -253,10 +258,10 @@ def check_inward_adj_list(l, node):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='NTU-RGB-D Data Converter.')
-    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/mesh_pt_small/all/')
+    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/smooth_524_pt_11_classes/all/')
     parser.add_argument('--ignored_sample_path',
                         default='../data/ntu_less_raw/samples_with_missing_skeletons.txt')
-    parser.add_argument('--out_folder', default='../data/ntu_test/')
+    parser.add_argument('--out_folder', default='/mnt/h/Datasets/NTU/ntu_test/')
 
     benchmark = ['xsub', 'xview']
     part = ['train', 'val']
