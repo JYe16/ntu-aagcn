@@ -9,7 +9,11 @@ import random
 import shutil
 import time
 from collections import OrderedDict
-
+import seaborn as sn
+from datetime import datetime
+from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix
+import pandas as pd
 import numpy as np
 # torch
 import torch
@@ -117,7 +121,7 @@ def get_parser():
     parser.add_argument(
         '--num-worker',
         type=int,
-        default=32,
+        default=6,
         help='the number of worker for data loader')
     parser.add_argument(
         '--train-feeder-args',
@@ -446,9 +450,12 @@ class Processor():
             f_r = open(result_file, 'w')
         self.model.eval()
         self.print_log('Eval epoch: {}'.format(epoch + 1))
+        classes = open('/mnt/h/Datasets/NTU/aagcn_skl/classes.txt').readlines()
         for ln in loader_name:
             loss_value = []
             score_frag = []
+            y_true = np.array([])
+            y_pred = np.array([])
             right_num_total = 0
             total_num = 0
             loss_total = 0
@@ -476,6 +483,11 @@ class Processor():
 
                     _, predict_label = torch.max(output.data, 1)
                     step += 1
+                    for l in label.cpu():
+                        y_true = np.append(l, y_true)
+
+                    for pred in np.array(predict_label.cpu().detach().numpy()):
+                        y_pred = np.append(pred, y_pred)
 
                 if wrong_file is not None or result_file is not None:
                     predict = list(predict_label.cpu().numpy())
@@ -488,10 +500,20 @@ class Processor():
             score = np.concatenate(score_frag)
             loss = np.mean(loss_value)
             eval_losses.append(loss)
-            accuracy = self.data_loader[ln].dataset.top_k(score, 1)
+            accuracy = float(format(float(self.data_loader[ln].dataset.top_k(score, 1) * 100), '.2f'))
             if accuracy > self.best_acc:
                 self.best_acc = accuracy
-            # self.lr_scheduler.step(loss)
+                if self.best_acc > 0:
+                    now = datetime.now()
+                    cf_name = self.arg.work_dir + '/' + now.strftime("%m%d%y-%H%M") + '-acc-' + str(self.best_acc) + '.png'
+                    cf_matrix = confusion_matrix(y_true, y_pred)
+                    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index=[i for i in classes],
+                                         columns=[i for i in classes])
+                    plt.figure(figsize=(16, 9))
+                    sn.heatmap(df_cm, annot=True)
+                    plt.savefig(cf_name)
+                    plt.clf()
+                    print("New confusion matrix saved...\n")
             print('Accuracy: ', accuracy, ' model: ', self.arg.model_saved_name)
             if self.arg.phase == 'train':
                 self.val_writer.add_scalar('loss', loss, self.global_step)
