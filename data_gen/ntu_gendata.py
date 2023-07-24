@@ -189,6 +189,59 @@ def gendata_from_pt(pt_path, out_path, benchmark='xview', part='eval', num_joint
     fp = np.zeros((len(sample_label), 3, 32, num_joint, 1), dtype=np.float32)
 
     for i, s in enumerate(tqdm(sample_name)):
+        data = torch.FloatTensor(shrink_points_o3d(np.asarray(torch.permute(resize(torch.permute(torch.load(os.path.join(pt_path, s)), (2, 0, 1)).view(1, 3, -1, 10475), size=(32, 10475), mode='bilinear', align_corners=False).squeeze(), (1, 2, 0))), 500))
+        if adj_list_generated is False:
+            data_t = torch.permute(data, (3, 1, 2, 0)).squeeze()
+            generate_adjacency_pair_inward(np.asarray(data_t)[0], path=out_path)
+            adj_list_generated = True
+        fp[i, :, 0:data.shape[1], :, :] = data
+
+    np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
+
+
+def gendata_from_pt_nr(pt_path, out_path, benchmark='xview', part='eval', num_joint=524):
+    ignored_samples = []
+    sample_name = []
+    sample_label = []
+    adj_list_generated = False
+    classes_file = open(pt_path + "../classes.txt")
+    classes = classes_file.readlines()
+    for i in range(0, len(classes), 1):
+        classes[i] = classes[i].split('-')[0]
+
+    for filename in os.listdir(pt_path):
+        if filename in ignored_samples:
+            continue
+        action_class = generate_y(filename, classes)
+        subject_id = int(
+            filename[filename.find('P') + 1:filename.find('P') + 4])
+        camera_id = int(
+            filename[filename.find('C') + 1:filename.find('C') + 4])
+
+        if benchmark == 'xview':
+            istraining = (camera_id in training_cameras)
+        elif benchmark == 'xsub':
+            istraining = (subject_id in training_subjects)
+        else:
+            raise ValueError()
+
+        if part == 'train':
+            issample = istraining
+        elif part == 'val':
+            issample = not (istraining)
+        else:
+            raise ValueError()
+
+        if issample:
+            sample_name.append(filename)
+            sample_label.append(action_class)
+
+    with open('{}/{}_label.pkl'.format(out_path, part), 'wb') as f:
+        pickle.dump((sample_name, list(sample_label)), f)
+
+    fp = np.zeros((len(sample_label), 3, 32, num_joint, 1), dtype=np.float32)
+
+    for i, s in enumerate(tqdm(sample_name)):
         data = torch.permute(torch.load(os.path.join(pt_path, s)), (2, 0, 1)).view(3, 32, 524, 1)
         # data = resize(data, size=(32, 10475), mode='bilinear', align_corners=False).view(32, 10475, 3)
         # data = torch.FloatTensor(shrink_points_o3d(np.asarray(data), 500))
@@ -275,7 +328,7 @@ def shrink_points_o3d(original_sequence, target_num):
             # o3d.visualization.draw_geometries([pcd])
         else:
             result = np.append(result, np.asarray(pcd.points).reshape(1, -1, 3)).reshape(-1, shape, 3)
-    return result.reshape(3, -1, shape, 1)
+    return np.transpose(result.reshape(1, -1, shape, 3), (3, 1, 2, 0))
 
 
 def generate_adjacency_pair_inward(frame, path):
@@ -311,10 +364,10 @@ def check_inward_adj_list(l, node):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='NTU-RGB-D Data Converter.')
-    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/skl_pt_11_classes/all/')
+    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/mesh_pt_11_classes/all/')
     parser.add_argument('--ignored_sample_path',
                         default='../data/ntu_less_raw/samples_with_missing_skeletons.txt')
-    parser.add_argument('--out_folder', default='/mnt/h/Datasets/NTU/aagcn_skl/')
+    parser.add_argument('--out_folder', default='/mnt/h/Datasets/NTU/aagcn_mesh_unprocessed/')
 
     benchmark = ['xsub', 'xview']
     part = ['train', 'val']
@@ -334,7 +387,7 @@ if __name__ == '__main__':
             #     benchmark=b,
             #     ignored_sample_path=arg.ignored_sample_path,
             #     part=p)
-            gendata_from_pt_skl(
+            gendata_from_pt(
                 pt_path=arg.data_path,
                 out_path=out_path,
                 benchmark=b,
