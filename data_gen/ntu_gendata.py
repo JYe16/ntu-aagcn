@@ -392,10 +392,10 @@ if __name__ == '__main__':
     # d = np.load('../data/ntu_test/xsub/train_data_joint.npy')
 
     for b in benchmark:
+        out_path = os.path.join(arg.out_folder, b)
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
         for p in part:
-            out_path = os.path.join(arg.out_folder, b)
-            if not os.path.exists(out_path):
-                os.makedirs(out_path)
             print(b, p)
             # gendata(
             #     data_path=arg.data_path,
@@ -410,4 +410,4 @@ if __name__ == '__main__':
             #     benchmark=b,
             #     part=p)
 
-            gendata_from_dl(path=arg.data_path, joint_num=2095, out_path=out_path)
+        gendata_from_dl(path=arg.data_path, joint_num=2095, out_path=out_path)
