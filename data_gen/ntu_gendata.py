@@ -1,6 +1,6 @@
 import argparse
 import pickle
-
+from shutil import copyfile
 import math
 from tqdm import tqdm
 import sys
@@ -254,6 +254,22 @@ def gendata_from_pt_nr(pt_path, out_path, benchmark='xview', part='eval', num_jo
     np.save('{}/{}_data_joint.npy'.format(out_path, part), fp)
 
 
+def gendata_from_dl(path, joint_num, out_path):
+    adj_list_generated = False
+    types = ['train', 'test']
+    for type in types:
+        x_original = np.array(torch.load(os.path.join(path, 'x_' + type + '_' + str(joint_num) + '.pt')))
+        x_out = np.empty(shape=(0, 3, 32, joint_num, 1), dtype=np.float32)
+        for i in tqdm(range(0, len(x_original), 1)):
+            if adj_list_generated is False:
+                generate_adjacency_pair_inward(np.asarray(x_original)[i][0], path=out_path)
+                adj_list_generated = True
+            x_out = np.concatenate((x_out, np.transpose(x_original[i], (2, 1, 0)).reshape(1, 3, 32, joint_num, 1)))
+        out_filename = os.path.join(out_path, 'x_' + type + '_' + str(joint_num) + '_aagcn')
+        np.save(out_filename, x_out)
+        copyfile(os.path.join(path, 'y_' + type + '_' + str(joint_num) + '.npy'), os.path.join(out_path, 'y_' + type + '_' + str(joint_num) + '.npy'))
+
+
 def gendata_from_pt_skl(pt_path, out_path, benchmark='xview', part='eval'):
     ignored_samples = []
     sample_name = []
@@ -364,12 +380,12 @@ def check_inward_adj_list(l, node):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='NTU-RGB-D Data Converter.')
-    parser.add_argument('--data_path', default='/mnt/h/Datasets/NTU/mesh_pt_11_classes/all/')
+    parser.add_argument('--data_path', default='/mnt/d/yzk/NTU/mesh_pt_11_classes/')
     parser.add_argument('--ignored_sample_path',
                         default='../data/ntu_less_raw/samples_with_missing_skeletons.txt')
-    parser.add_argument('--out_folder', default='/mnt/h/Datasets/NTU/aagcn_mesh_unprocessed/')
+    parser.add_argument('--out_folder', default='/mnt/d/yzk/NTU/mesh_pt_11_claases_aagcn/')
 
-    benchmark = ['xsub', 'xview']
+    benchmark = ['xsub']
     part = ['train', 'val']
     arg = parser.parse_args()
 
@@ -387,8 +403,11 @@ if __name__ == '__main__':
             #     benchmark=b,
             #     ignored_sample_path=arg.ignored_sample_path,
             #     part=p)
-            gendata_from_pt(
-                pt_path=arg.data_path,
-                out_path=out_path,
-                benchmark=b,
-                part=p)
+
+            # gendata_from_pt(
+            #     pt_path=arg.data_path,
+            #     out_path=out_path,
+            #     benchmark=b,
+            #     part=p)
+
+            gendata_from_dl(path=arg.data_path, joint_num=2095, out_path=out_path)

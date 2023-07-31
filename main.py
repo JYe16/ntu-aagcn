@@ -450,7 +450,7 @@ class Processor():
             f_r = open(result_file, 'w')
         self.model.eval()
         self.print_log('Eval epoch: {}'.format(epoch + 1))
-        classes = open('/mnt/h/Datasets/NTU/aagcn_skl/classes.txt').readlines()
+        classes = open('/mnt/d/yzk/NTU/aagcn_mesh_nr/classes.txt').readlines()
         for ln in loader_name:
             loss_value = []
             score_frag = []

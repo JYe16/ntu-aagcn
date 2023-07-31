@@ -285,7 +285,7 @@ class TCN_GCN_unit(nn.Module):
 
 class Model(nn.Module):
     def __init__(self, num_class=49, num_point=524, num_person=1, graph=None, graph_args=dict(), in_channels=3,
-                 drop_out=0, adaptive=True, attention=True):
+                 drop_out=0.25, adaptive=True, attention=True):
         super(Model, self).__init__()
 
         if graph is None:
@@ -301,16 +301,16 @@ class Model(nn.Module):
 
         self.l1 = TCN_GCN_unit(3, 64, A, residual=False, adaptive=adaptive, attention=attention)
         self.l2 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
-        self.l3 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
-        self.l4 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
-        self.l5 = TCN_GCN_unit(64, 128, A, stride=2, adaptive=adaptive, attention=attention)
-        self.l6 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention)
-        self.l7 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention)
-        self.l8 = TCN_GCN_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention)
-        self.l9 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
-        self.l10 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
+        self.l3 = TCN_GCN_unit(64, 128, A, adaptive=adaptive, attention=attention)
+        self.l4 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention)
+        self.l5 = TCN_GCN_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention)
+        self.l6 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
+        self.l7 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
+        self.l8 = TCN_GCN_unit(256, 512, A, stride=2, adaptive=adaptive, attention=attention)
+        self.l9 = TCN_GCN_unit(512, 512, A, adaptive=adaptive, attention=attention)
+        self.l10 = TCN_GCN_unit(512, 512, A, adaptive=adaptive, attention=attention)
 
-        self.fc = nn.Linear(256, num_class)
+        self.fc = nn.Linear(512, num_class)
         nn.init.normal_(self.fc.weight, 0, math.sqrt(2. / num_class))
         bn_init(self.data_bn, 1)
         if drop_out:
